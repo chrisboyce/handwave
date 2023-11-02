@@ -4,6 +4,12 @@ use esp_idf_hal::{delay::FreeRtos, gpio::PinDriver, peripherals::Peripherals};
 use esp_idf_sys as _;
 use ht16k33::{LedLocation, HT16K33};
 
+/// Map logical matrix location to actual device coordinate 
+///
+/// Writing to location (0,0) in the display doesn't actually cause the corner
+/// LED to light up. Instead, the LED at location (0,6) lights up. To make it
+/// easier to work with the matrix, the DISPLAY_MAP returns the *actual* 
+/// display x/y coordinates needed to a particular *logical* matrix location
 #[rustfmt::skip]
 const DISPLAY_MAP: [[(u8, u8); 8]; 8] = [
     [(0,6),(2,6),(4,6),(6,6),(8,6),(10,6),(12,6),(14,6)],
@@ -16,9 +22,17 @@ const DISPLAY_MAP: [[(u8, u8); 8]; 8] = [
     [(0,7),(2,7),(4,7),(6,7),(8,7),(10,7),(12,7),(14,7)],
 ];
 
-/// Converts a string representation of a matrix state and returns it as an
-/// unsigned 64-bit number. Since there are 64 LEDs in the matrix, every bit
-/// in the number represents the state of a single LED
+/// Converts a series of bits represented in a string to a u64
+///
+/// Our 8x8 LED matrix has 64 LEDs, the same number of bits in a 64-bit integer.
+/// This means we can represent the on/off state of the LEDs as bits in a u64.
+///
+/// This function strips any characters that aren't "0" or "1" from a string
+/// and then converts the resulting binary number in string form into a u64.
+///
+/// ```rust
+/// leds = create_matrix("00000000 00000000 11111111 11111111 00000000 11111111 10101010 01010101");
+/// ```
 fn create_matrix(lines: &str) -> u64 {
     let mut result: u64 = 0;
     for char in lines.chars() {
@@ -40,7 +54,7 @@ fn main() {
     esp_idf_sys::link_patches();
 
     let peripherals = Peripherals::take().unwrap();
-    let mut led_pin = PinDriver::output(peripherals.pins.gpio7).unwrap();
+    // let mut led_pin = PinDriver::output(peripherals.pins.gpio7).unwrap();
 
     let sda = peripherals.pins.gpio10;
     let scl = peripherals.pins.gpio8;
@@ -56,6 +70,23 @@ fn main() {
     ht16k33.set_display(ht16k33::Display::ON).unwrap();
 
     let frames = [
+        // The following two function calls produce the same results
+        create_matrix(
+            "
+        11111111
+        00000000
+        00000000
+        00000000
+        00000000
+        00000000
+        00000000
+        00000000
+        ",
+        ),
+        create_matrix_from_pattern(["1", "0", "0", "0", "0", "0", "0", "0"]),
+        // Some more complex patterns. They are repeated until they are 8 bits
+        // long and then truncated to 8.
+        create_matrix_from_pattern(["1011", "1", "101", "1011110", "0", "0", "0", "0"]),
         create_matrix(
             "
         11111111
@@ -89,31 +120,47 @@ fn main() {
             ht16k33.clear_display_buffer();
             // Iterate over each bit in the current frame
             for i in 0..64 {
-                // Calcate the location on the display for the current bit
+                // i / 8 will increase by one every 8 iterations:
+                // i    : 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+                // i / 8: 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1
+                //
+                // i % 8 just repeatedly counts 0-7:
+                // i    : 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+                // i % 8: 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2
+                //
+                // Using these two numbers, we can easily walk over each index
+                // in the matrix.
                 let (x, y) = DISPLAY_MAP[i / 8][i % 8];
+
+                //
                 let led_location = LedLocation::new(x, y).unwrap();
 
                 // Use bit shifting logic to determine if the current bit is set
-                // or not
+                // or not. We use the bitwise shift `>>` to move the `i`th bit
+                // into the "ones" place. We then bitwise "and" operator `&`
+                // to retain only the first bit in our result. Lastly, we
+                // check if our sole bit is equal to 1 or not.
                 let should_be_on = frame >> i & 1 == 1;
 
                 ht16k33.update_display_buffer(led_location, should_be_on);
             }
             ht16k33.write_display_buffer().unwrap();
-            FreeRtos::delay_ms(1000);
+            FreeRtos::delay_ms(400);
         }
     }
 }
 
 // Work in progress..
-fn create_matrix_from_pattern(lines: [&str; 8]) -> [[bool; 8]; 8] {
+fn create_matrix_from_pattern(lines: [&str; 8]) -> u64 {
+    let mut joined_lines = vec![];
     for line in lines {
         let line = line
             .repeat(8_usize.div_ceil(line.len()))
             .chars()
             .take(8)
             .collect::<String>();
-        println!("LINE {line}");
+        joined_lines.push(line);
     }
-    todo!()
+    let joined_lines = joined_lines.join("");
+    create_matrix(&joined_lines)
 }
