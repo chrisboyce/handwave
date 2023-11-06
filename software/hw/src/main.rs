@@ -1,9 +1,11 @@
 use esp_idf_hal::i2c::*;
 use esp_idf_hal::prelude::*;
-use esp_idf_hal::{delay::FreeRtos, gpio::PinDriver, peripherals::Peripherals};
+use esp_idf_hal::{delay::FreeRtos,  peripherals::Peripherals};
 use esp_idf_sys as _;
 use ht16k33::{LedLocation, HT16K33};
 
+pub mod font;
+use font::char_to_u64;
 /// Map logical matrix location to actual device coordinate 
 ///
 /// Writing to location (0,0) in the display doesn't actually cause the corner
@@ -22,33 +24,6 @@ const DISPLAY_MAP: [[(u8, u8); 8]; 8] = [
     [(0,7),(2,7),(4,7),(6,7),(8,7),(10,7),(12,7),(14,7)],
 ];
 
-/// Converts a series of bits represented in a string to a u64
-///
-/// Our 8x8 LED matrix has 64 LEDs, the same number of bits in a 64-bit integer.
-/// This means we can represent the on/off state of the LEDs as bits in a u64.
-///
-/// This function strips any characters that aren't "0" or "1" from a string
-/// and then converts the resulting binary number in string form into a u64.
-///
-/// ```rust
-/// leds = create_matrix("00000000 00000000 11111111 11111111 00000000 11111111 10101010 01010101");
-/// ```
-fn create_matrix(lines: &str) -> u64 {
-    let mut result: u64 = 0;
-    for char in lines.chars() {
-        match char {
-            '1' => {
-                result = result << 1;
-                result = result | 1;
-            }
-            '0' => {
-                result = result << 1;
-            }
-            _ => {}
-        }
-    }
-    result
-}
 
 fn main() {
     esp_idf_sys::link_patches();
@@ -70,47 +45,28 @@ fn main() {
     ht16k33.set_display(ht16k33::Display::ON).unwrap();
 
     let frames = [
-        // The following two function calls produce the same results
-        create_matrix(
-            "
-        11111111
-        00000000
-        00000000
-        00000000
-        00000000
-        00000000
-        00000000
-        00000000
-        ",
-        ),
-        create_matrix_from_pattern(["1", "0", "0", "0", "0", "0", "0", "0"]),
-        // Some more complex patterns. They are repeated until they are 8 bits
-        // long and then truncated to 8.
-        create_matrix_from_pattern(["1011", "1", "101", "1011110", "0", "0", "0", "0"]),
-        create_matrix(
-            "
-        11111111
-        10000000
-        01000000
-        00100000
-        00010000
-        00001000
-        00000100
-        00000010
-        ",
-        ),
-        create_matrix(
-            "
-        11111111
-        00000000
-        00000000
-        00000000
-        00000000
-        00000000
-        00000000
-        11111111
-        ",
-        ),
+        // // The following two function calls produce the same results
+        // create_matrix(
+        //     "
+        // 11111111
+        // 00000000
+        // 00000000
+        // 00000000
+        // 00000000
+        // 00000000
+        // 00000000
+        // 00000000
+        // ",
+        // ),
+        // create_matrix_from_pattern(["1", "0", "0", "0", "0", "0", "0", "0"]),
+        char_to_u64('H'),
+        char_to_u64('i'),
+        char_to_u64(' '),
+        font::P,
+        font::o,
+        char_to_u64('p'),
+        char_to_u64('!'),
+        char_to_u64('*'),
     ];
 
     loop {
@@ -147,20 +103,7 @@ fn main() {
             ht16k33.write_display_buffer().unwrap();
             FreeRtos::delay_ms(400);
         }
+        FreeRtos::delay_ms(1000);
     }
 }
 
-// Work in progress..
-fn create_matrix_from_pattern(lines: [&str; 8]) -> u64 {
-    let mut joined_lines = vec![];
-    for line in lines {
-        let line = line
-            .repeat(8_usize.div_ceil(line.len()))
-            .chars()
-            .take(8)
-            .collect::<String>();
-        joined_lines.push(line);
-    }
-    let joined_lines = joined_lines.join("");
-    create_matrix(&joined_lines)
-}
