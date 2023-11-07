@@ -45,15 +45,88 @@ fn main() {
     ht16k33.initialize().unwrap();
     ht16k33.set_display(ht16k33::Display::ON).unwrap();
 
+    #[rustfmt::skip]
     let frames = [
-        char_to_u64('H'),
-        char_to_u64('i'),
-        char_to_u64(' '),
-        font::P,
-        font::o,
-        char_to_u64('p'),
-        char_to_u64('!'),
-        char_to_u64('*'),
+        font::create_matrix_from_pattern([
+            "00000010",
+            "00000011",
+            "00000010",
+            "00000010",
+            "0",
+            "0",
+            "0",
+            "0",
+        ]),
+        font::create_matrix_from_pattern([
+            "00000100",
+            "00000111",
+            "00000101",
+            "00000101",
+            "0",
+            "0",
+            "0",
+            "0",
+        ]),
+        font::create_matrix_from_pattern([
+            "00001000",
+            "00001110",
+            "00001010",
+            "00001010",
+            "0",
+            "0",
+            "0",
+            "0",
+        ]),
+        font::create_matrix_from_pattern([
+            "00010001",
+            "00011101",
+            "00010101",
+            "00010101",
+            "0",
+            "0",
+            "0",
+            "0",
+        ]),
+        font::create_matrix_from_pattern([
+            "00100011",
+            "00111011",
+            "00101010",
+            "00101011",
+            "0",
+            "0",
+            "0",
+            "0",
+        ]),
+        font::create_matrix_from_pattern([
+            "01000111",
+            "01110110",
+            "01010100",
+            "01010111",
+            "0",
+            "0",
+            "0",
+            "0",
+        ]),
+        font::create_matrix_from_pattern([
+            "10001110",
+            "11101100",
+            "10101000",
+            "10101110",
+            "0",
+            "0",
+            "0",
+            "0",
+        ]),
+
+        // char_to_u64('H'),
+
+        // char_to_u64('i'),
+        // char_to_u64(' '),
+        // font::P,
+        // font::o,
+        // char_to_u64('p'),
+        // char_to_u64('!'),
+        // char_to_u64('*'),
     ];
 
     loop {
@@ -88,7 +161,7 @@ fn main() {
                 ht16k33.update_display_buffer(led_location, should_be_on);
             }
             ht16k33.write_display_buffer().unwrap();
-            FreeRtos::delay_ms(400);
+            FreeRtos::delay_ms(100);
         }
         FreeRtos::delay_ms(1000);
     }

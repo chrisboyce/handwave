@@ -11,7 +11,7 @@
 //
 // [
 //
-const FONT_MAP_4_X_4: [u8; 1] = [
+const FONT_MAP_4_X_4: [u16; 1] = [
     0b0111_1010_1010_0111, // 'A'
 ];
 #[rustfmt::skip]
@@ -251,9 +251,12 @@ pub fn create_matrix(lines: &str) -> u64 {
     result
 }
 
-// Work in progress... Prefixing it with an underscore prevents the
-// compiler from complaining about unused functions.
-fn _create_matrix_from_pattern(lines: [&str; 8]) -> u64 {
+/// Creates a 64-bit LED matrix value from a pattern of lines
+///
+/// For each line, the pattern is repeated until 8 characters have been created.
+/// Pattern lengths should be 1-8 characters in length.
+///
+pub fn create_matrix_from_pattern(lines: [&str; 8]) -> u64 {
     let mut joined_lines = vec![];
 
     for line in lines {
