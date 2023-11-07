@@ -6,8 +6,14 @@
 /// This mapping is based on an [existing orders and values]
 /// (https://gist.github.com/rothwerx/700f275d078b3483509f).
 ///
-/// 
+///
 
+//
+// [
+//
+const FONT_MAP_4_X_4: [u8; 1] = [
+    0b0111_1010_1010_0111, // 'A'
+];
 #[rustfmt::skip]
 const FONT_MAP: [u64; 69] = [
     0b00110000_01111000_11001100_11001100_11111100_11001100_11001100_00000000, // 'A' 
@@ -111,9 +117,9 @@ pub const Z: u64 = FONT_MAP[25];
 
 // Rust doesn't like lower-case `const`s. We can manually disable this [lint check]
 // (https://doc.rust-lang.org/reference/attributes/diagnostics.html#lint-check-attributes)
-// with the `#[allow(non_snake_case)]` but that's a warning that we might be
-// mis-using the ability to have lower-case `const`s and it doesn't match
-// recommended coding styles.
+// with the `#[allow(non_upper_case_globals)]` direcctive, but that's a warning
+// that we might be mis-using the ability to have lower-case `const`s and it
+// doesn't match recommended coding styles.
 //
 // ```
 // pub const a: u64 = FONT_MAP[26];
@@ -130,8 +136,17 @@ pub const o: u64 = FONT_MAP[40];
 // since `pub const !: u64..` isn't valid syntax due to the restrictions on
 // `const` names.
 
+/// Even though, at the moment,
+pub struct Char(u64);
 
-/// Convert a character into its 64-bit LED representation, 
+impl Char {
+    pub fn new_from_char(char_to_convert: char) -> Self {
+        let converted_value = char_to_u64(char_to_convert);
+        Self(converted_value)
+    }
+}
+
+/// Convert a character into its 64-bit LED representation,
 pub fn char_to_u64(char_to_convert: char) -> u64 {
     match char_to_convert {
         'A' => FONT_MAP[0],
@@ -202,7 +217,7 @@ pub fn char_to_u64(char_to_convert: char) -> u64 {
         '%' => FONT_MAP[65],
         '&' => FONT_MAP[66],
         '?' => FONT_MAP[67],
-        ' '  => 0,
+        ' ' => 0,
         // All other characters get the "missing" pattern
         _ => FONT_MAP[68],
     }
@@ -235,7 +250,6 @@ pub fn create_matrix(lines: &str) -> u64 {
     }
     result
 }
-
 
 // Work in progress... Prefixing it with an underscore prevents the
 // compiler from complaining about unused functions.

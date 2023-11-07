@@ -1,11 +1,13 @@
 use esp_idf_hal::i2c::*;
 use esp_idf_hal::prelude::*;
-use esp_idf_hal::{delay::FreeRtos,  peripherals::Peripherals};
+use esp_idf_hal::{delay::FreeRtos, peripherals::Peripherals};
 use esp_idf_sys as _;
 use ht16k33::{LedLocation, HT16K33};
 
-pub mod font;
+mod display;
+mod font;
 use font::char_to_u64;
+
 /// Map logical matrix location to actual device coordinate 
 ///
 /// Writing to location (0,0) in the display doesn't actually cause the corner
@@ -23,7 +25,6 @@ const DISPLAY_MAP: [[(u8, u8); 8]; 8] = [
     [(0,0),(2,0),(4,0),(6,0),(8,0),(10,0),(12,0),(14,0)],
     [(0,7),(2,7),(4,7),(6,7),(8,7),(10,7),(12,7),(14,7)],
 ];
-
 
 fn main() {
     esp_idf_sys::link_patches();
@@ -45,20 +46,6 @@ fn main() {
     ht16k33.set_display(ht16k33::Display::ON).unwrap();
 
     let frames = [
-        // // The following two function calls produce the same results
-        // create_matrix(
-        //     "
-        // 11111111
-        // 00000000
-        // 00000000
-        // 00000000
-        // 00000000
-        // 00000000
-        // 00000000
-        // 00000000
-        // ",
-        // ),
-        // create_matrix_from_pattern(["1", "0", "0", "0", "0", "0", "0", "0"]),
         char_to_u64('H'),
         char_to_u64('i'),
         char_to_u64(' '),
@@ -106,4 +93,3 @@ fn main() {
         FreeRtos::delay_ms(1000);
     }
 }
-
