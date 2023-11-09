@@ -1,13 +1,14 @@
 use display::get_a;
+use display::get_b;
+use display::Display;
 use esp_idf_hal::i2c::*;
 use esp_idf_hal::prelude::*;
 use esp_idf_hal::{delay::FreeRtos, peripherals::Peripherals};
 use esp_idf_sys as _;
-use ht16k33::{LedLocation, HT16K33};
+use ht16k33::HT16K33;
 
 mod display;
 mod font;
-use font::char_to_u64;
 
 /// Map logical matrix location to actual device coordinate 
 ///
@@ -46,28 +47,35 @@ fn main() {
     ht16k33.initialize().unwrap();
     ht16k33.set_display(ht16k33::Display::ON).unwrap();
 
-    let a = get_a();
     loop {
-        ht16k33.clear_display_buffer();
-        // let (x, y) = DISPLAY_MAP[0][0];
-        // let led_location = LedLocation::new(x, y).unwrap();
-        // ht16k33.update_display_buffer(led_location, true);
+        let mut display = Display::new();
+        let scroll_delay = 100;
 
-        // let (x, y) = DISPLAY_MAP[7][7];
-        // let led_location = LedLocation::new(x, y).unwrap();
-        // ht16k33.update_display_buffer(led_location, true);
+        // Print "A" then a single column, then "B". In theory.
 
-        for (column_index, column_value) in a.columns.iter().enumerate() {
-            for i in 0..8 {
-                let cur_led_value = column_value >> i & 1;
-                // println!("I think the LED at {column_index},{i} is {cur_led_value}");
-                let (x, y) = DISPLAY_MAP[column_index][i];
-                let led_location = LedLocation::new(x, y).unwrap();
-                // println!("Writing to LED matrix {x},{y} {cur_led_value}");
-                ht16k33.update_display_buffer(led_location, cur_led_value == 1);
+        for column in get_a() {
+            display.push_column(column);
+            ht16k33.clear_display_buffer();
+            for (led, enabled) in display.to_leds() {
+                ht16k33.update_display_buffer(led, enabled);
             }
+            ht16k33.write_display_buffer().unwrap();
+            FreeRtos::delay_ms(scroll_delay);
         }
-        ht16k33.write_display_buffer().unwrap();
+        display.push_column(0);
+
+        for column in get_b() {
+            display.push_column(column);
+            // This loop draws all the LEDs which make up the current `display`
+            ht16k33.clear_display_buffer();
+            for (led, enabled) in display.to_leds() {
+                ht16k33.update_display_buffer(led, enabled);
+            }
+            ht16k33.write_display_buffer().unwrap();
+            FreeRtos::delay_ms(scroll_delay);
+        }
+
+        FreeRtos::delay_ms(1000);
     }
 
     // loop {
