@@ -1,3 +1,4 @@
+use display::get_a;
 use esp_idf_hal::i2c::*;
 use esp_idf_hal::prelude::*;
 use esp_idf_hal::{delay::FreeRtos, peripherals::Peripherals};
@@ -45,124 +46,64 @@ fn main() {
     ht16k33.initialize().unwrap();
     ht16k33.set_display(ht16k33::Display::ON).unwrap();
 
-    #[rustfmt::skip]
-    let frames = [
-        font::create_matrix_from_pattern([
-            "00000010",
-            "00000011",
-            "00000010",
-            "00000010",
-            "0",
-            "0",
-            "0",
-            "0",
-        ]),
-        font::create_matrix_from_pattern([
-            "00000100",
-            "00000111",
-            "00000101",
-            "00000101",
-            "0",
-            "0",
-            "0",
-            "0",
-        ]),
-        font::create_matrix_from_pattern([
-            "00001000",
-            "00001110",
-            "00001010",
-            "00001010",
-            "0",
-            "0",
-            "0",
-            "0",
-        ]),
-        font::create_matrix_from_pattern([
-            "00010001",
-            "00011101",
-            "00010101",
-            "00010101",
-            "0",
-            "0",
-            "0",
-            "0",
-        ]),
-        font::create_matrix_from_pattern([
-            "00100011",
-            "00111011",
-            "00101010",
-            "00101011",
-            "0",
-            "0",
-            "0",
-            "0",
-        ]),
-        font::create_matrix_from_pattern([
-            "01000111",
-            "01110110",
-            "01010100",
-            "01010111",
-            "0",
-            "0",
-            "0",
-            "0",
-        ]),
-        font::create_matrix_from_pattern([
-            "10001110",
-            "11101100",
-            "10101000",
-            "10101110",
-            "0",
-            "0",
-            "0",
-            "0",
-        ]),
-
-        // char_to_u64('H'),
-
-        // char_to_u64('i'),
-        // char_to_u64(' '),
-        // font::P,
-        // font::o,
-        // char_to_u64('p'),
-        // char_to_u64('!'),
-        // char_to_u64('*'),
-    ];
-
+    let a = get_a();
     loop {
-        // Each frame is a 64-bit number, where each bit represents the on/off
-        // state of an LED.
-        for frame in frames {
-            ht16k33.clear_display_buffer();
-            // Iterate over each bit in the current frame
-            for i in 0..64 {
-                // i / 8 will increase by one every 8 iterations:
-                // i    : 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
-                // i / 8: 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1
-                //
-                // i % 8 just repeatedly counts 0-7:
-                // i    : 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
-                // i % 8: 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2
-                //
-                // Using these two numbers, we can easily walk over each index
-                // in the matrix.
-                let (x, y) = DISPLAY_MAP[i / 8][i % 8];
+        ht16k33.clear_display_buffer();
+        // let (x, y) = DISPLAY_MAP[0][0];
+        // let led_location = LedLocation::new(x, y).unwrap();
+        // ht16k33.update_display_buffer(led_location, true);
 
-                //
+        // let (x, y) = DISPLAY_MAP[7][7];
+        // let led_location = LedLocation::new(x, y).unwrap();
+        // ht16k33.update_display_buffer(led_location, true);
+
+        for (column_index, column_value) in a.columns.iter().enumerate() {
+            for i in 0..8 {
+                let cur_led_value = column_value >> i & 1;
+                // println!("I think the LED at {column_index},{i} is {cur_led_value}");
+                let (x, y) = DISPLAY_MAP[column_index][i];
                 let led_location = LedLocation::new(x, y).unwrap();
-
-                // Use bit shifting logic to determine if the current bit is set
-                // or not. We use the bitwise shift `>>` to move the `i`th bit
-                // into the "ones" place. We then bitwise "and" operator `&`
-                // to retain only the first bit in our result. Lastly, we
-                // check if our sole bit is equal to 1 or not.
-                let should_be_on = frame >> i & 1 == 1;
-
-                ht16k33.update_display_buffer(led_location, should_be_on);
+                // println!("Writing to LED matrix {x},{y} {cur_led_value}");
+                ht16k33.update_display_buffer(led_location, cur_led_value == 1);
             }
-            ht16k33.write_display_buffer().unwrap();
-            FreeRtos::delay_ms(100);
         }
-        FreeRtos::delay_ms(1000);
+        ht16k33.write_display_buffer().unwrap();
     }
+
+    // loop {
+    //     // Each frame is a 64-bit number, where each bit represents the on/off
+    //     // state of an LED.
+    //     for frame in frames {
+    //         ht16k33.clear_display_buffer();
+    //         // Iterate over each bit in the current frame
+    //         for i in 0..64 {
+    //             // i / 8 will increase by one every 8 iterations:
+    //             // i    : 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+    //             // i / 8: 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1
+    //             //
+    //             // i % 8 just repeatedly counts 0-7:
+    //             // i    : 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+    //             // i % 8: 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2
+    //             //
+    //             // Using these two numbers, we can easily walk over each index
+    //             // in the matrix.
+    //             let (x, y) = DISPLAY_MAP[i / 8][i % 8];
+
+    //             //
+    //             let led_location = LedLocation::new(x, y).unwrap();
+
+    //             // Use bit shifting logic to determine if the current bit is set
+    //             // or not. We use the bitwise shift `>>` to move the `i`th bit
+    //             // into the "ones" place. We then bitwise "and" operator `&`
+    //             // to retain only the first bit in our result. Lastly, we
+    //             // check if our sole bit is equal to 1 or not.
+    //             let should_be_on = frame >> i & 1 == 1;
+
+    //             ht16k33.update_display_buffer(led_location, should_be_on);
+    //         }
+    //         ht16k33.write_display_buffer().unwrap();
+    //         FreeRtos::delay_ms(100);
+    //     }
+    //     // FreeRtos::delay_ms(1000);
+    // }
 }
