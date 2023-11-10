@@ -9,12 +9,25 @@ pub struct Display {
 }
 
 pub fn get_a() -> [u8; 4] {
-    [0b01111110, 0b00110011, 0b00110011, 0b01111110]
+    [
+    0b01111110, 
+    0b00110011, 
+    0b00110011, 
+    0b01111110]
 }
 pub fn get_b() -> [u8; 4] {
     [0b01111111, 0b01101011, 0b01101011, 0b00110110]
 }
 
+#[rustfmt::skip]
+pub fn get_some_pattern() -> [u8; 4] {
+    [
+        0b01101110, 
+        0b10010001, 
+        0b10010001, 
+        0b11111111,
+    ]
+}
 impl Display {
     /// Convert the display state into a u64 representing the 64 LED states
     pub fn _as_u64(&self) -> u64 {
