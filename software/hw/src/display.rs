@@ -8,24 +8,34 @@ pub struct Display {
     columns: [Column; 8],
 }
 
-pub fn get_a() -> [u8; 4] {
+#[rustfmt::skip]
+pub fn get_a() -> [u8; 6] {
     [
-    0b01111110, 
-    0b00110011, 
-    0b00110011, 
-    0b01111110]
+        0b00111110,
+        0b01111110, 
+        0b11001000, 
+        0b11001000, 
+        0b01111110, 
+        0b00111110]
 }
-pub fn get_b() -> [u8; 4] {
-    [0b01111111, 0b01101011, 0b01101011, 0b00110110]
+#[rustfmt::skip]
+pub fn get_b() -> [u8; 6] {
+    [
+        0b10000010,
+        0b11111110,
+        0b11111110,
+        0b10010010,
+        0b10010010,
+        0b01101100,
+    ]
 }
 
 #[rustfmt::skip]
-pub fn get_some_pattern() -> [u8; 4] {
+pub fn get_some_pattern() -> [u8; 3] {
     [
-        0b01101110, 
-        0b10010001, 
-        0b10010001, 
         0b11111111,
+        0b10100000, 
+        0b11100000, 
     ]
 }
 impl Display {
@@ -56,7 +66,7 @@ impl Display {
                     // Convert the "logical" location we want into the actual
                     // coordinates the matrix needs to address the desired
                     // location.
-                    let (x, y) = DISPLAY_MAP[column_index][i];
+                    let (x, y) = DISPLAY_MAP[i][7 - column_index];
                     let led_location = LedLocation::new(x, y).unwrap();
 
                     // Return a tuple containing the LedLocation, and the on/off
