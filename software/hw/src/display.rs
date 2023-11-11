@@ -2,7 +2,7 @@ use ht16k33::LedLocation;
 
 use crate::DISPLAY_MAP;
 
-type Column = u8;
+pub type Column = u8;
 
 pub struct Display {
     columns: [Column; 8],

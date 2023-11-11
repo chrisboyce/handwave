@@ -1,3 +1,5 @@
+use crate::display::Column;
+
 /// Based on https://gist.github.com/rothwerx/700f275d078b3483509f
 
 /// Maps a numeric index corresponding to a particular character into its
@@ -8,12 +10,18 @@
 ///
 ///
 
-//
-// [
-//
 const FONT_MAP_4_X_4: [u16; 1] = [
     0b0111_1010_1010_0111, // 'A'
 ];
+
+/// Due to the "endianness", even though the padding columns are on the right
+/// of the other bits, when we loop over the 8 bytes what make up this 64-bit
+/// number the bytes on the right will be the first that are accessed
+const FONT_MAP_NEW: [u64; 2] = [
+    0b00111110_01111110_11001000_11001000_01111110_00111110_00000000_00000000, // 'A'
+    0b01101100_10010010_10010010_11111110_11111110_10000010_00000000_00000000, // 'B'
+];
+
 #[rustfmt::skip]
 const FONT_MAP: [u64; 69] = [
     0b00110000_01111000_11001100_11001100_11111100_11001100_11001100_00000000, // 'A' 
@@ -271,4 +279,43 @@ pub fn create_matrix_from_pattern(lines: [&str; 8]) -> u64 {
     let joined_lines = joined_lines.join("");
 
     create_matrix(&joined_lines)
+}
+
+pub fn char_to_columns(char_to_convert: char) -> Vec<Column> {
+    let char_as_u64 = match char_to_convert {
+        'A' => FONT_MAP_NEW[0],
+        'B' => FONT_MAP_NEW[1],
+        ' ' => 0,
+        // Pattern to indicate we had no match for the given `char`
+        _ => 0b11111111_10000001_10000001_10000001_10000001_10000001_10000001_11111111,
+    };
+
+    // `Column` is just a type alias to `u8`, so bytemuck can cast the u64 to
+    // 8 `u8`s
+    let char_as_columns: [Column; 8] = bytemuck::cast(char_as_u64);
+
+    let first_non_empty_column: Option<(usize, Column)> = char_as_columns
+        .into_iter()
+        .enumerate()
+        .find(|(column_index, column_value)| *column_value != 0);
+
+    match first_non_empty_column {
+        // Here, we "destructure" the value of `first_non_empty_column` into
+        // a specific variable named `column_index`, and discard the column
+        // value by assigning it to `_` since we don't actually need the value
+        // here.
+        Some((column_index, _)) => char_as_columns[(column_index as usize)..].to_vec(),
+
+        // If all columns are empty, that means the value is zero. Assume this
+        // is because we matched a space character above, so we manually return
+        // a single empty column to represent the space.
+        None => vec![0],
+    }
+}
+
+pub fn string_to_columns(input: &str) -> Vec<Column> {
+    input
+        .chars()
+        .flat_map(|cur_char| char_to_columns(cur_char))
+        .collect()
 }

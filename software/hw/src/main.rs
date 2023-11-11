@@ -6,6 +6,7 @@ use esp_idf_hal::i2c::*;
 use esp_idf_hal::prelude::*;
 use esp_idf_hal::{delay::FreeRtos, peripherals::Peripherals};
 use esp_idf_sys as _;
+use font::string_to_columns;
 use ht16k33::HT16K33;
 
 mod display;
@@ -62,6 +63,18 @@ fn main() {
         //     FreeRtos::delay_ms(scroll_delay);
         // }
         // display.push_column(0);
+        loop {
+            for column in string_to_columns(&"A B Hi pop!") {
+                display.push_column(column);
+                // This loop draws all the LEDs which make up the current `display`
+                ht16k33.clear_display_buffer();
+                for (led, enabled) in display.to_leds() {
+                    ht16k33.update_display_buffer(led, enabled);
+                }
+                ht16k33.write_display_buffer().unwrap();
+                FreeRtos::delay_ms(scroll_delay);
+            }
+        }
 
         loop {
             for column in get_a() {
