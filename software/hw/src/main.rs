@@ -31,7 +31,6 @@ fn main() {
     esp_idf_sys::link_patches();
 
     let peripherals = Peripherals::take().unwrap();
-    // let mut led_pin = PinDriver::output(peripherals.pins.gpio7).unwrap();
 
     let sda = peripherals.pins.gpio10;
     let scl = peripherals.pins.gpio8;
@@ -44,6 +43,7 @@ fn main() {
     let mut ht16k33 = HT16K33::new(led_matrix, 0x70_u8);
 
     ht16k33.initialize().unwrap();
+
     ht16k33.set_display(ht16k33::Display::ON).unwrap();
 
     loop {
@@ -52,7 +52,7 @@ fn main() {
 
         loop {
             for column in string_to_columns(&"A B Hi pop!") {
-                display.push_column(column);
+                display = display.push_column(column);
                 // This loop draws all the LEDs which make up the current `display`
                 ht16k33.clear_display_buffer();
                 for (led, enabled) in display.to_leds() {

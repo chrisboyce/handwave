@@ -1,53 +1,27 @@
+use bytemuck::cast;
 use ht16k33::LedLocation;
 
-use crate::DISPLAY_MAP;
+use crate::{font::string_to_columns, DISPLAY_MAP};
 
 pub type Column = u8;
 
+pub enum DisplayMode {
+    Scroll {
+        current_column: usize,
+        columns: Vec<Column>,
+    },
+    Animate(Vec<u64>),
+}
+
 pub struct Display {
-    columns: [Column; 8],
+    leds: u64,
+    mode: DisplayMode,
 }
 
-#[rustfmt::skip]
-pub fn get_a() -> [u8; 6] {
-    [
-        0b00111110,
-        0b01111110, 
-        0b11001000, 
-        0b11001000, 
-        0b01111110, 
-        0b00111110]
-}
-#[rustfmt::skip]
-pub fn get_b() -> [u8; 6] {
-    [
-        0b10000010,
-        0b11111110,
-        0b11111110,
-        0b10010010,
-        0b10010010,
-        0b01101100,
-    ]
-}
-
-#[rustfmt::skip]
-pub fn get_some_pattern() -> [u8; 3] {
-    [
-        0b11111111,
-        0b10100000, 
-        0b11100000, 
-    ]
-}
 impl Display {
-    /// Convert the display state into a u64 representing the 64 LED states
-    pub fn _as_u64(&self) -> u64 {
-        bytemuck::cast(self.columns)
-    }
-
     pub fn to_leds(&self) -> Vec<(LedLocation, bool)> {
-        self.columns
-            // First, turn `colums` into a value which can repeatedly
-            // return items
+        let columns: [u8; 8] = cast(self.leds);
+        columns
             .iter()
             // The `enumerate` call essentially adds the index/counter
             // to each of the columns being iterated over
@@ -83,30 +57,47 @@ impl Display {
             .collect()
     }
 
-    pub fn _push_columns<C: std::iter::IntoIterator<Item = Column>>(&mut self, columns: C) {
-        for column in columns.into_iter() {
-            self.push_column(column);
-        }
-    }
+    // pub fn _push_columns<C: std::iter::IntoIterator<Item = Column>>(&mut self, columns: C) {
+    //     for column in columns.into_iter() {
+    //         self.push_column(column);
+    //     }
+    // }
 
-    pub fn push_column(&mut self, column: Column) {
-        self.columns = [
-            self.columns[1],
-            self.columns[2],
-            self.columns[3],
-            self.columns[4],
-            self.columns[5],
-            self.columns[6],
-            self.columns[7],
+    pub fn push_column(self, column: Column) -> Self {
+        let columns: [u8; 8] = cast(self.leds);
+        let columns = [
+            columns[1], columns[2], columns[3], columns[4], columns[5], columns[6], columns[7],
             column,
-        ]
+        ];
+        let leds = cast(columns);
+        Self { leds, ..self }
     }
 
     /// Create a new, empty display
     pub fn new() -> Self {
         Self {
-            columns: [0, 0, 0, 0, 0, 0, 0, 0],
+            // By default, the display will be set to the following mode
+            mode: DisplayMode::Scroll {
+                current_column: 0,
+                columns: string_to_columns(&"Hi Pop! :)"),
+            },
+            leds: 0,
         }
+    }
+
+    pub fn tick(&self) -> Self {
+        // match self.mode {
+        //     DisplayMode::Scroll {
+        //         current_column,
+        //         columns,
+        //     } => {
+        //         // let mut
+        //         // self.push_column(columns[current_column]);
+        //         // current_column = (current_column + 1) % columns.len();
+        //     }
+        //     DisplayMode::Animate(_) => {}
+        // }
+        todo!()
     }
 
     /// Return list of 8 u8's, each one representing the bits that are "on" in
