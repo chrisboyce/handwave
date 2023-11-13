@@ -14,8 +14,8 @@ pub enum DisplayMode {
 }
 
 pub struct Display {
-    leds: u64,
-    mode: DisplayMode,
+    pub leds: u64,
+    pub mode: DisplayMode,
 }
 
 impl Display {
@@ -64,13 +64,41 @@ impl Display {
     // }
 
     pub fn push_column(self, column: Column) -> Self {
-        let columns: [u8; 8] = cast(self.leds);
-        let columns = [
-            columns[1], columns[2], columns[3], columns[4], columns[5], columns[6], columns[7],
-            column,
-        ];
-        let leds = cast(columns);
-        Self { leds, ..self }
+        match self.mode {
+            DisplayMode::Scroll {
+                current_column,
+                columns,
+            } => {
+                let columns: [u8; 8] = cast(self.leds);
+                let columns = [
+                    columns[1],
+                    columns[2],
+                    columns[3],
+                    columns[4],
+                    columns[5],
+                    columns[6],
+                    columns[7],
+                    columns[current_column],
+                ];
+                let leds = cast(columns);
+                Self {
+                    leds,
+                    mode: DisplayMode::Scroll {
+                        current_column: current_column + 1,
+                        columns: columns.to_vec(),
+                    },
+                }
+            }
+            // In `Animate` mode, pushing columns doesn't do anything
+            // Note that if we didn't have this here, Rust would
+            // complain about a "missing match arm", meaning that
+            // one "variant" of our `enum` was not explicitly covered.
+            // This helps us avoid situations where we only make an update
+            // in certain places, as adding or removing a variant will
+            // automatically require all places that it is used to be
+            // updated as well.
+            DisplayMode::Animate(_) => Self { ..self },
+        }
     }
 
     /// Create a new, empty display
@@ -79,13 +107,14 @@ impl Display {
             // By default, the display will be set to the following mode
             mode: DisplayMode::Scroll {
                 current_column: 0,
-                columns: string_to_columns(&"Hi Pop! :)"),
+                columns: string_to_columns(&"A B B A A"),
             },
             leds: 0,
         }
     }
 
-    pub fn tick(&self) -> Self {
+    pub fn tick(self) -> Self {
+        todo!()
         // match self.mode {
         //     DisplayMode::Scroll {
         //         current_column,
@@ -97,7 +126,6 @@ impl Display {
         //     }
         //     DisplayMode::Animate(_) => {}
         // }
-        todo!()
     }
 
     /// Return list of 8 u8's, each one representing the bits that are "on" in
