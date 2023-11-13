@@ -1,26 +1,49 @@
 use bytemuck::cast;
 use ht16k33::LedLocation;
 
-use crate::{font::string_to_columns, DISPLAY_MAP};
+use crate::{
+    font::string_to_columns,
+    util::{from_columns, to_columns},
+    DISPLAY_MAP,
+};
 
+/// A type alias to make it more "ergonomic" to work with `u8`s in the context
+/// of 8-LED colums.
 pub type Column = u8;
 
+/// Defines display behavior and state
 pub enum DisplayMode {
+    /// Marquee-style scrolling of the given columns
     Scroll {
-        current_column: usize,
+        /// Used to determine which line to "push" next on to the display
+        next_column_index: usize,
+
+        /// The entire list of columns to scroll through. Note that only a
+        /// subset of these will be likely visible at a time, since they
+        /// may not all fit on the display at once. That is to say, this
+        /// holds all of the columns, not just the ones being displayed.
         columns: Vec<Column>,
     },
-    Animate(Vec<u64>),
+
+    /// Cycles through a vector of `u64`s, treating them as frames of an
+    /// animation.
+    Animate { frames: Vec<u64>, next_frame: usize },
 }
 
+/// Display state
 pub struct Display {
+    /// The on/off state of the 64 LEDs on the display as represented by a
+    /// 64-bit number
     pub leds: u64,
+
     pub mode: DisplayMode,
 }
 
 impl Display {
+    /// Convert the current `Display` into a list of LED states, each indicating
+    /// its [`LedLocation`] and its on/off state via a `bool`.
     pub fn to_leds(&self) -> Vec<(LedLocation, bool)> {
-        let columns: [u8; 8] = cast(self.leds);
+        let columns = to_columns(self.leds);
         columns
             .iter()
             // The `enumerate` call essentially adds the index/counter
@@ -57,97 +80,43 @@ impl Display {
             .collect()
     }
 
-    // pub fn _push_columns<C: std::iter::IntoIterator<Item = Column>>(&mut self, columns: C) {
-    //     for column in columns.into_iter() {
-    //         self.push_column(column);
-    //     }
-    // }
-
-    pub fn push_column(self, column: Column) -> Self {
-        match self.mode {
-            DisplayMode::Scroll {
-                current_column,
-                columns,
-            } => {
-                let columns: [u8; 8] = cast(self.leds);
-                let columns = [
-                    columns[1],
-                    columns[2],
-                    columns[3],
-                    columns[4],
-                    columns[5],
-                    columns[6],
-                    columns[7],
-                    columns[current_column],
-                ];
-                let leds = cast(columns);
-                Self {
-                    leds,
-                    mode: DisplayMode::Scroll {
-                        current_column: current_column + 1,
-                        columns: columns.to_vec(),
-                    },
-                }
-            }
-            // In `Animate` mode, pushing columns doesn't do anything
-            // Note that if we didn't have this here, Rust would
-            // complain about a "missing match arm", meaning that
-            // one "variant" of our `enum` was not explicitly covered.
-            // This helps us avoid situations where we only make an update
-            // in certain places, as adding or removing a variant will
-            // automatically require all places that it is used to be
-            // updated as well.
-            DisplayMode::Animate(_) => Self { ..self },
-        }
-    }
-
     /// Create a new, empty display
     pub fn new() -> Self {
         Self {
             // By default, the display will be set to the following mode
             mode: DisplayMode::Scroll {
-                current_column: 0,
-                columns: string_to_columns(&"A B B A A"),
+                next_column_index: 0,
+                columns: string_to_columns(&"AB A B"),
             },
             leds: 0,
         }
     }
 
-    pub fn tick(self) -> Self {
-        todo!()
-        // match self.mode {
-        //     DisplayMode::Scroll {
-        //         current_column,
-        //         columns,
-        //     } => {
-        //         // let mut
-        //         // self.push_column(columns[current_column]);
-        //         // current_column = (current_column + 1) % columns.len();
-        //     }
-        //     DisplayMode::Animate(_) => {}
-        // }
-    }
+    /// This function updates the state of the LEDs depending on which
+    /// [`DisplayMode`] is used.
+    pub fn update(&mut self) {
+        match self.mode {
+            DisplayMode::Scroll {
+                ref mut next_column_index,
+                ref columns,
+            } => {
+                let next_column = columns[*next_column_index];
+                let current_columns = to_columns(self.leds);
+                let shifted_columns = [
+                    current_columns[1],
+                    current_columns[2],
+                    current_columns[3],
+                    current_columns[4],
+                    current_columns[5],
+                    current_columns[6],
+                    current_columns[7],
+                    next_column,
+                ];
+                self.leds = from_columns(shifted_columns);
 
-    /// Return list of 8 u8's, each one representing the bits that are "on" in
-    /// particular column
-    ///
-    // For reference, the bits are mapped to the display grid by the following
-    // ordering:
-    //
-    // 0 , 1 , 2 , 3 , 4 , 5 , 6 , 7 <- columns
-    //
-    // 0 , 1 , 2 , 3 , 4 , 5 , 6 , 7 ,
-    // 8 , 9 , 10, 11, 12, 13, 14, 15,
-    // 16, 17, 18, 19, 20, 21, 22, 23,
-    // 24, 25, 26, 27, 28, 29, 30, 31,
-    // 32, 33, 34, 35, 36, 37, 38, 39,
-    // 40, 41, 42, 43, 44, 45, 46, 47,
-    // 48, 49, 50, 51, 52, 53, 54, 55,
-    // 56, 57, 58, 59, 60, 61, 62, 63,
-    fn _columns(&self) -> [u8; 8] {
-        // let masks: [u64; 8] =
-        //     [0b10000000_10000000_10000000_10000000_10000000_10000000_10000000_10000000];
-
-        todo!()
+                *next_column_index = (*next_column_index + 1_usize) % columns.len();
+            }
+            DisplayMode::Animate { .. } => todo!(),
+        }
     }
 }

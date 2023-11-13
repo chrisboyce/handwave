@@ -1,14 +1,13 @@
-use bytemuck::cast;
 use display::Display;
 use esp_idf_hal::i2c::*;
 use esp_idf_hal::prelude::*;
 use esp_idf_hal::{delay::FreeRtos, peripherals::Peripherals};
 use esp_idf_sys as _;
-use font::string_to_columns;
 use ht16k33::HT16K33;
 
 mod display;
 mod font;
+mod util;
 
 /// Map logical matrix location to actual device coordinate 
 ///
@@ -52,41 +51,18 @@ fn main() {
         let scroll_delay = 90;
 
         loop {
-            // This loop draws all the LEDs which make up the current `display`
-            fun_name(&mut display);
+            // Update the display
+            display.update();
+
             ht16k33.clear_display_buffer();
+            // This loop draws all the LEDs which make up the current `display`
             for (led, enabled) in display.to_leds() {
                 ht16k33.update_display_buffer(led, enabled);
             }
             ht16k33.write_display_buffer().unwrap();
-            // display = display.tick();
             FreeRtos::delay_ms(scroll_delay);
         }
     }
 }
 
-fn fun_name(display: &mut Display) {
-    match display.mode {
-        display::DisplayMode::Scroll {
-            ref mut current_column,
-            ref columns,
-        } => {
-            let next_column = columns[*current_column];
-            let columns: [u8; 8] = cast(display.leds);
-            let columns = [
-                columns[1],
-                columns[2],
-                columns[3],
-                columns[4],
-                columns[5],
-                columns[6],
-                columns[7],
-                next_column,
-            ];
-            display.leds = cast(columns);
-
-            *current_column = (*current_column + 1_usize) % columns.len();
-        }
-        display::DisplayMode::Animate(_) => todo!(),
-    }
-}
+fn fun_name(display: &mut Display) {}

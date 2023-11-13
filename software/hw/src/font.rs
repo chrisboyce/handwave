@@ -1,6 +1,6 @@
-use crate::display::Column;
+use crate::{display::Column, util::to_columns};
 
-/// Based on https://gist.github.com/rothwerx/700f275d078b3483509f
+/// Based on <https://gist.github.com/rothwerx/700f275d078b3483509f>
 
 /// Maps a numeric index corresponding to a particular character into its
 /// 64-bit representation as on/off LEDs on the matrix.
@@ -78,9 +78,7 @@ pub fn char_to_columns(char_to_convert: char) -> Vec<Column> {
         _ => 0b11111111_10000001_10000001_10000001_10000001_10000001_10000001_11111111,
     };
 
-    // `Column` is just a type alias to `u8`, so bytemuck can cast the u64 to
-    // 8 `u8`s
-    let char_as_columns: [Column; 8] = bytemuck::cast(char_as_u64);
+    let char_as_columns = to_columns(char_as_u64);
 
     let first_non_empty_column: Option<(usize, Column)> = char_as_columns
         .into_iter()
@@ -104,6 +102,6 @@ pub fn char_to_columns(char_to_convert: char) -> Vec<Column> {
 pub fn string_to_columns(input: &str) -> Vec<Column> {
     input
         .chars()
-        .flat_map(|cur_char| char_to_columns(cur_char))
+        .flat_map(|cur_char| [char_to_columns(cur_char), vec![0]].into_iter().flatten())
         .collect()
 }
