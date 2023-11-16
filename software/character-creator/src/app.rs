@@ -66,7 +66,7 @@ impl eframe::App for TemplateApp {
                 ui.horizontal(|ui| {
                     for y in 0..8 {
                         let checkbox =
-                            egui::Checkbox::without_text(&mut self.leds[x + (7 - y) * 8]);
+                            egui::Checkbox::without_text(&mut self.leds[(7 - x) + (y) * 8]);
                         ui.add(checkbox);
                     }
                 });
