@@ -86,7 +86,7 @@ impl Display {
             // By default, the display will be set to the following mode
             mode: DisplayMode::Scroll {
                 next_column_index: 0,
-                columns: string_to_columns(&"AB A B"),
+                columns: string_to_columns(&"BAB"),
             },
             leds: 0,
         }

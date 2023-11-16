@@ -82,8 +82,7 @@ impl eframe::App for TemplateApp {
                 self.decimal_value = format!("{ret}");
                 ui.text_edit_singleline(&mut self.decimal_value);
 
-                // Uncomment to show binary representation
-                // ui.label(format!("{:064b}", ret));
+                ui.label(format!("{:064b}", ret));
             });
 
             ui.separator();
