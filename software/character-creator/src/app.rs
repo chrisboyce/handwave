@@ -2,24 +2,17 @@
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 pub struct TemplateApp {
-    // Example stuff:
-    label: String,
-
-    #[serde(skip)] // This how you opt-out of serialization of a field
-    value: f32,
-
+    /// State of LEDs
     #[serde(skip)]
     leds: [bool; 64],
 
+    /// The decimal value of the LED on/off state
     decimal_value: String,
 }
 
 impl Default for TemplateApp {
     fn default() -> Self {
         Self {
-            // Example stuff:
-            label: "Hello World!".to_owned(),
-            value: 2.7,
             leds: [false; 64],
             decimal_value: String::new(),
         }
@@ -43,30 +36,47 @@ impl TemplateApp {
 }
 
 impl eframe::App for TemplateApp {
-    /// Called by the frame work to save state before shutdown.
+    // Called by the frame work to save state before shutdown.
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         eframe::set_value(storage, eframe::APP_KEY, self);
     }
 
-    /// Called each time the UI needs repainting, which may be many times per second.
+    // Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("handwave character creator");
 
+            // Try to parse the current decimal value and use that to
+            // set the LEDs. This allows the user to edit the value in the
+            // text field and have it change the.
+
+            // Fetch the current value
             let decimal_value_as_string = self.decimal_value.clone();
 
+            // Try to parse the current value as a u64. If it succeeds..
             if let Ok(decimal_value) = decimal_value_as_string.parse::<u64>() {
+                // For each bit..
                 for i in 0..64 {
+                    // Use bitwise logic to detemine if the i'th bit is a 0 or 1
                     let led_on = (decimal_value & (1_u64 << i)) != 0;
+
+                    // Update the LED state based on the boolean value
                     self.leds[i] = led_on;
                 }
             }
 
+            // draw the checkboxes
             for x in 0..8 {
                 ui.horizontal(|ui| {
                     for y in 0..8 {
+                        // We pass in a mutable reference to the LED at the
+                        // current location. With that mutable reference,
+                        // egui handles updating the value when the checkbox
+                        // changes.
                         let checkbox =
                             egui::Checkbox::without_text(&mut self.leds[(7 - x) + (y) * 8]);
+
+                        // Add the checkbox to our layout
                         ui.add(checkbox);
                     }
                 });
@@ -84,27 +94,6 @@ impl eframe::App for TemplateApp {
 
                 ui.label(format!("{:064b}", ret));
             });
-
-            ui.separator();
-
-            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                powered_by_egui_and_eframe(ui);
-                egui::warn_if_debug_build(ui);
-            });
         });
     }
-}
-
-fn powered_by_egui_and_eframe(ui: &mut egui::Ui) {
-    ui.horizontal(|ui| {
-        ui.spacing_mut().item_spacing.x = 0.0;
-        ui.label("Powered by ");
-        ui.hyperlink_to("egui", "https://github.com/emilk/egui");
-        ui.label(" and ");
-        ui.hyperlink_to(
-            "eframe",
-            "https://github.com/emilk/egui/tree/master/crates/eframe",
-        );
-        ui.label(".");
-    });
 }
