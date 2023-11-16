@@ -93,6 +93,9 @@ impl eframe::App for TemplateApp {
                 ui.text_edit_singleline(&mut self.decimal_value);
 
                 ui.label(format!("{:064b}", ret));
+                if ui.button("Clear").clicked() {
+                    self.decimal_value = "0".to_string();
+                }
             });
         });
     }
