@@ -84,9 +84,13 @@ impl Display {
     pub fn new() -> Self {
         Self {
             // By default, the display will be set to the following mode
-            mode: DisplayMode::Scroll {
-                next_column_index: 0,
-                columns: string_to_columns(&"BAB"),
+            // mode: DisplayMode::Scroll {
+            //     next_column_index: 0,
+            //     columns: string_to_columns(&"BAB"),
+            // },
+            mode: DisplayMode::Animate {
+                frames: vec![134217728, 34695806976, 8882564106240, 6795266420249608],
+                next_frame: 0,
             },
             leds: 0,
         }
@@ -116,7 +120,13 @@ impl Display {
 
                 *next_column_index = (*next_column_index + 1_usize) % columns.len();
             }
-            DisplayMode::Animate { .. } => todo!(),
+            DisplayMode::Animate {
+                ref frames,
+                ref mut next_frame,
+            } => {
+                self.leds = frames[*next_frame];
+                *next_frame = (*next_frame + 1_usize) % frames.len();
+            }
         }
     }
 }
