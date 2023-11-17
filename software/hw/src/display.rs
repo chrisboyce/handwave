@@ -89,7 +89,7 @@ impl Display {
             //     columns: string_to_columns(&"BAB"),
             // },
             mode: DisplayMode::Animate {
-                frames: vec![134217728, 34695806976, 8882564106240, 6795266420249608],
+                frames: vec![134217728, 34695806976, 8882564106240, 2273937167881224],
                 next_frame: 0,
             },
             leds: 0,
