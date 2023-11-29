@@ -3,6 +3,8 @@ use display::Display;
 use esp_idf_svc::hal::delay::FreeRtos;
 use esp_idf_svc::hal::i2c::I2cConfig;
 use esp_idf_svc::hal::i2c::I2cDriver;
+use esp_idf_svc::hal::i2s;
+use esp_idf_svc::hal::i2s::config::StdConfig;
 use esp_idf_svc::hal::prelude::Peripherals;
 // use esp_idf_hal::i2c::*;
 // use esp_idf_hal::prelude::*;
@@ -41,6 +43,9 @@ fn main() {
 
     let peripherals = Peripherals::take().unwrap();
 
+    let i2s = peripherals.i2s0;
+
+    let i2s_config = i2s::config::Config::default();
     let sda = peripherals.pins.gpio10;
     let scl = peripherals.pins.gpio8;
 
