@@ -4,11 +4,14 @@ use std::time::Duration;
 use display::frame_to_leds;
 use display::Display;
 use esp_idf_svc::hal::delay::FreeRtos;
+use esp_idf_svc::hal::gpio::AnyIOPin;
 use esp_idf_svc::hal::i2c::I2cConfig;
 use esp_idf_svc::hal::i2c::I2cDriver;
 use esp_idf_svc::hal::i2s;
 use esp_idf_svc::hal::i2s::config as I2sConfig;
 use esp_idf_svc::hal::i2s::config::StdConfig;
+use esp_idf_svc::hal::i2s::I2sDriver;
+use esp_idf_svc::hal::i2s::I2sTx;
 use esp_idf_svc::hal::prelude::Peripherals;
 // use esp_idf_hal::i2c::*;
 // use esp_idf_hal::prelude::*;
@@ -42,7 +45,7 @@ const DISPLAY_MAP: [[(u8, u8); 8]; 8] = [
 const TIMEOUT: Duration = Duration::from_millis(100);
 const SAMPLE_RATE_HZ: u32 = 16000;
 const OMEGA_INC: f32 = TAU / SAMPLE_RATE_HZ as f32;
-// const BITS_PER_SAMPLE: I2sConfig::DataBitWidth = I2sConfig::DataBitWidth::Bits16;
+const BITS_PER_SAMPLE: I2sConfig::DataBitWidth = I2sConfig::DataBitWidth::Bits16;
 const DMA_BUFFERS: usize = 12;
 const DMA_FRAMES: usize = 240;
 
@@ -54,12 +57,42 @@ fn main() {
 
     let peripherals = Peripherals::take().unwrap();
 
-    let i2s = peripherals.i2s0;
-
     let i2s_config = I2sConfig::Config::default();
     let clk_config = I2sConfig::StdClkConfig::from_sample_rate_hz(SAMPLE_RATE_HZ)
         .clk_src(I2sConfig::ClockSource::Pll160M);
     let gpio_config = I2sConfig::StdGpioConfig::default();
+
+    let slot_config = I2sConfig::StdSlotConfig::philips_slot_default(
+        BITS_PER_SAMPLE,
+        I2sConfig::SlotMode::Stereo,
+    );
+    let std_config = I2sConfig::StdConfig::new(i2s_config, clk_config, slot_config, gpio_config);
+
+    println!("Initializing I2S driver");
+    let bclk = peripherals.pins.gpio2;
+    let dout = peripherals.pins.gpio4;
+    let ws = peripherals.pins.gpio1;
+    let mclk = AnyIOPin::none();
+    let i2s = I2sDriver::<I2sTx>::new_std_tx(peripherals.i2s0, &std_config, bclk, dout, mclk, ws)
+        .unwrap();
+    // I2sDriver::new_std_tx(
+    //     peripherals.i2s0,
+    //     &std_config,
+    //     bclk,
+    //     dout,
+    //     AnyIOPin::none(),
+    //     ws,
+    // )
+    // .unwrap();
+    // let mut i2s = I2sStdDriver::<I2sTx>::new_tx(
+    //     peripherals.i2s0,
+    //     std_config,
+    //     bclk,
+    //     Some(dout),
+    //     AnyIOPin::none(),
+    //     ws,
+    // )
+    // .unwrap();
 
     let sda = peripherals.pins.gpio10;
     let scl = peripherals.pins.gpio8;
