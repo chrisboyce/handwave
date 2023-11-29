@@ -1,9 +1,13 @@
+use std::f32::consts::TAU;
+use std::time::Duration;
+
 use display::frame_to_leds;
 use display::Display;
 use esp_idf_svc::hal::delay::FreeRtos;
 use esp_idf_svc::hal::i2c::I2cConfig;
 use esp_idf_svc::hal::i2c::I2cDriver;
 use esp_idf_svc::hal::i2s;
+use esp_idf_svc::hal::i2s::config as I2sConfig;
 use esp_idf_svc::hal::i2s::config::StdConfig;
 use esp_idf_svc::hal::prelude::Peripherals;
 // use esp_idf_hal::i2c::*;
@@ -35,6 +39,13 @@ const DISPLAY_MAP: [[(u8, u8); 8]; 8] = [
     [(0,0),(2,0),(4,0),(6,0),(8,0),(10,0),(12,0),(14,0)],
 ];
 
+const TIMEOUT: Duration = Duration::from_millis(100);
+const SAMPLE_RATE_HZ: u32 = 16000;
+const OMEGA_INC: f32 = TAU / SAMPLE_RATE_HZ as f32;
+// const BITS_PER_SAMPLE: I2sConfig::DataBitWidth = I2sConfig::DataBitWidth::Bits16;
+const DMA_BUFFERS: usize = 12;
+const DMA_FRAMES: usize = 240;
+
 fn main() {
     esp_idf_svc::sys::link_patches();
 
@@ -45,7 +56,11 @@ fn main() {
 
     let i2s = peripherals.i2s0;
 
-    let i2s_config = i2s::config::Config::default();
+    let i2s_config = I2sConfig::Config::default();
+    let clk_config = I2sConfig::StdClkConfig::from_sample_rate_hz(SAMPLE_RATE_HZ)
+        .clk_src(I2sConfig::ClockSource::Pll160M);
+    let gpio_config = I2sConfig::StdGpioConfig::default();
+
     let sda = peripherals.pins.gpio10;
     let scl = peripherals.pins.gpio8;
 
