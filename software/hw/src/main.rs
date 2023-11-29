@@ -8,6 +8,7 @@ use esp_idf_svc::hal::prelude::Peripherals;
 // use esp_idf_hal::prelude::*;
 // use esp_idf_hal::{delay::FreeRtos, peripherals::Peripherals};
 // use esp_idf_sys as _;
+use ht16k33::LedLocation;
 use ht16k33::HT16K33;
 
 mod display;
@@ -53,6 +54,18 @@ fn main() {
     ht16k33.initialize().unwrap();
 
     ht16k33.set_display(ht16k33::Display::ON).unwrap();
+    loop {
+        for i in 0..16 {
+            for j in 0..8 {
+                ht16k33.clear_display_buffer();
+                let led = LedLocation::new(i, j).unwrap();
+                ht16k33.update_display_buffer(led, true);
+                ht16k33.write_display_buffer().unwrap();
+                FreeRtos::delay_ms(50);
+            }
+        }
+        FreeRtos::delay_ms(50);
+    }
 
     loop {
         let mut scrolling_text = Display::new_scrolling_text(&"Wow!{");
@@ -94,5 +107,4 @@ fn main() {
             FreeRtos::delay_ms(scroll_delay);
         }
     }
-    log::info!("Hello, world!");
 }

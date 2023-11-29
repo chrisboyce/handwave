@@ -54,21 +54,24 @@ pub fn frame_to_leds(frame: u64) -> Vec<(LedLocation, bool)> {
         // in some way.
         .map(|(column_index, column_value)| {
             // Loop over each of 8 bits, numbered 0-7
-            (0..8).map(move |i| {
-                // Use "bitwise" operations to determine if the i'th bit
-                // is set
-                let led_state = column_value >> i & 1;
+            (0..8)
+                .map(move |i| {
+                    // Use "bitwise" operations to determine if the i'th bit
+                    // is set
+                    let led_state = column_value >> i & 1;
 
-                // Convert the "logical" location we want into the actual
-                // coordinates the matrix needs to address the desired
-                // location.
-                let (x, y) = DISPLAY_MAP[i][7 - column_index];
-                let led_location = LedLocation::new(x, y).unwrap();
+                    // Convert the "logical" location we want into the actual
+                    // coordinates the matrix needs to address the desired
+                    // location.
+                    let (x, y) = DISPLAY_MAP[i][7 - column_index];
+                    let led_location = LedLocation::new(x, y).unwrap();
+                    let led2_location = LedLocation::new(i as u8, column_index as u8).unwrap();
 
-                // Return a tuple containing the LedLocation, and the on/off
-                // state.
-                (led_location, led_state == 1)
-            })
+                    // Return a tuple containing the LedLocation, and the on/off
+                    // state.
+                    vec![(led_location, led_state == 1), (led2_location, true)]
+                })
+                .flatten()
         })
         // At this point, we actually have a nested collection, since each
         // column has 8 LedLocations, and there are 8 columns. The `flatten`
