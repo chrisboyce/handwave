@@ -1,3 +1,4 @@
+use display::frame_to_leds;
 use display::Display;
 use esp_idf_hal::i2c::*;
 use esp_idf_hal::prelude::*;
@@ -47,16 +48,39 @@ fn main() {
     ht16k33.set_display(ht16k33::Display::ON).unwrap();
 
     loop {
-        let mut display = Display::new();
-        let scroll_delay = 90;
+        let mut scrolling_text = Display::new_scrolling_text(&"Wow!{");
+        let mut animation = Display::new_animation(&vec![
+            562958543486983,
+            562958543488770,
+            562958543814658,
+            562958660927490,
+            562980018323458,
+            570655124881410,
+            1970333427040258,
+            504966116808982530,
+        ]);
 
+        let scroll_delay = 70;
+
+        let mut counter = 0;
         loop {
             // Update the display
-            display.update();
+            scrolling_text.update();
 
+            // Manually slow down the animation rate by skipping every
+            // other loop
+            if counter % 3 == 0 {
+                animation.update();
+            }
+            counter += 1;
+
+            // The `mask` value here selects the top 4 rows of the scrolling
+            // text and the bottom 4 from the animation
+            // let composited_frame = scrolling_text.composite_leds(&animation, 17361641481138401520);
             ht16k33.clear_display_buffer();
-            // This loop draws all the LEDs which make up the current `display`
-            for (led, enabled) in display.to_leds() {
+            // for (led, enabled) in frame_to_leds(composited_frame) {
+            // for (led, enabled) in animation.to_leds() {
+            for (led, enabled) in scrolling_text.to_leds() {
                 ht16k33.update_display_buffer(led, enabled);
             }
             ht16k33.write_display_buffer().unwrap();
@@ -64,5 +88,3 @@ fn main() {
         }
     }
 }
-
-fn fun_name(display: &mut Display) {}

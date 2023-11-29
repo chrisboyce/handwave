@@ -39,48 +39,77 @@ pub struct Display {
     pub mode: DisplayMode,
 }
 
+/// Converts a 64-bit number representing the display state into a `Vec` of
+/// LED locations and their on/off state.
+pub fn frame_to_leds(frame: u64) -> Vec<(LedLocation, bool)> {
+    let columns = to_columns(frame);
+    columns
+        .iter()
+        // The `enumerate` call essentially adds the index/counter
+        // to each of the columns being iterated over
+        .enumerate()
+        // `map` takes in one value, in this case it's a "tuple" of
+        // two values, the `column_index` and the `column_value`. It then
+        // returns a different value, usually using the initial value
+        // in some way.
+        .map(|(column_index, column_value)| {
+            // Loop over each of 8 bits, numbered 0-7
+            (0..8).map(move |i| {
+                // Use "bitwise" operations to determine if the i'th bit
+                // is set
+                let led_state = column_value >> i & 1;
+
+                // Convert the "logical" location we want into the actual
+                // coordinates the matrix needs to address the desired
+                // location.
+                let (x, y) = DISPLAY_MAP[i][7 - column_index];
+                let led_location = LedLocation::new(x, y).unwrap();
+
+                // Return a tuple containing the LedLocation, and the on/off
+                // state.
+                (led_location, led_state == 1)
+            })
+        })
+        // At this point, we actually have a nested collection, since each
+        // column has 8 LedLocations, and there are 8 columns. The `flatten`
+        // call has the effect of flattening out all the LedLocations into
+        // a single array.
+        .flatten()
+        // Lastly, collect our new list into a Vec
+        .collect()
+}
 impl Display {
+    pub fn composite_leds(&self, other: &Display, mask: u64) -> u64 {
+        (self.leds & mask) | (other.leds & !mask)
+    }
+
     /// Convert the current `Display` into a list of LED states, each indicating
     /// its [`LedLocation`] and its on/off state via a `bool`.
     pub fn to_leds(&self) -> Vec<(LedLocation, bool)> {
-        let columns = to_columns(self.leds);
-        columns
-            .iter()
-            // The `enumerate` call essentially adds the index/counter
-            // to each of the columns being iterated over
-            .enumerate()
-            // `map` takes in one value, in this case it's a "tuple" of
-            // two values, the `column_index` and the `column_value`. It then
-            // returns a different value, usually using the initial value
-            // in some way.
-            .map(|(column_index, column_value)| {
-                // Loop over each of 8 bits, numbered 0-7
-                (0..8).map(move |i| {
-                    // Use "bitwise" operations to determine if the i'th bit
-                    // is set
-                    let led_state = column_value >> i & 1;
-
-                    // Convert the "logical" location we want into the actual
-                    // coordinates the matrix needs to address the desired
-                    // location.
-                    let (x, y) = DISPLAY_MAP[i][7 - column_index];
-                    let led_location = LedLocation::new(x, y).unwrap();
-
-                    // Return a tuple containing the LedLocation, and the on/off
-                    // state.
-                    (led_location, led_state == 1)
-                })
-            })
-            // At this point, we actually have a nested collection, since each
-            // column has 8 LedLocations, and there are 8 columns. The `flatten`
-            // call has the effect of flattening out all the LedLocations into
-            // a single array.
-            .flatten()
-            // Lastly, collect our new list into a Vec
-            .collect()
+        frame_to_leds(self.leds)
     }
 
-    /// Create a new, empty display
+    /// Create a new display in `Scroll` mode with the given text
+    pub fn new_scrolling_text(text: &str) -> Self {
+        Self {
+            mode: DisplayMode::Scroll {
+                next_column_index: 0,
+                columns: string_to_columns(text),
+            },
+            leds: 0,
+        }
+    }
+
+    /// Create a new display in `Animate` mode with the given frames
+    pub fn new_animation(frames: &Vec<u64>) -> Self {
+        Self {
+            mode: DisplayMode::Animate {
+                frames: frames.clone(),
+                next_frame: 0,
+            },
+            leds: 0,
+        }
+    }
     pub fn new() -> Self {
         Self {
             // By default, the display will be set to the following mode

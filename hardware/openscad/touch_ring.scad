@@ -70,4 +70,4 @@ module rotor(inner_radius, outer_radius, pitch, separation, gap) {
 }
 
 rotate([0, 0, 90]) 
-  rotor(30, 75, 10, 0.35, 2);
+  rotor(47, 75,10, 0.35, 2);
