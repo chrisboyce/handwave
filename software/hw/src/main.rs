@@ -1,3 +1,4 @@
+use bytemuck::cast;
 use std::f32::consts::TAU;
 use std::time::Duration;
 
@@ -15,6 +16,8 @@ use esp_idf_svc::hal::i2s::I2sTx;
 use esp_idf_svc::hal::i2s::I2sTxSupported;
 use esp_idf_svc::hal::prelude::Peripherals;
 use esp_idf_svc::sys::EspError;
+use glicol_synth::oscillator::SinOsc;
+use glicol_synth::AudioContextBuilder;
 // use esp_idf_hal::i2c::*;
 // use esp_idf_hal::prelude::*;
 // use esp_idf_hal::{delay::FreeRtos, peripherals::Peripherals};
@@ -44,6 +47,8 @@ const DISPLAY_MAP: [[(u8, u8); 8]; 8] = [
     [(0,0),(2,0),(4,0),(6,0),(8,0),(10,0),(12,0),(14,0)],
 ];
 
+const SAMPLE_RATE: usize = 44_1000;
+const FRAME_SIZE: usize = 64;
 const TIMEOUT: Duration = Duration::from_millis(100);
 const SAMPLE_RATE_HZ: u32 = 16000;
 const OMEGA_INC: f32 = TAU / SAMPLE_RATE_HZ as f32;
@@ -84,6 +89,14 @@ impl SendTriangleWave {
     }
 }
 
+fn float_to_pcm(value: f32) -> i16 {
+    // Scale the floating-point value to fit within the range of i16
+    let scaled_value = (value * f32::from(i16::MAX)).clamp(-1.0, 1.0);
+
+    // Convert the scaled value to an i16 PCM value
+    (scaled_value * f32::from(i16::MAX)) as i16
+}
+
 impl SendTriangleWave {
     pub fn send<Dir: I2sTxSupported>(
         &mut self,
@@ -120,11 +133,11 @@ fn main() {
     let mut i2s =
         I2sDriver::<I2sTx>::new_std_tx(peripherals.i2s0, &std_config, bclk, dout, mclk, ws)
             .unwrap();
-    let mut wave = SendTriangleWave::new(440.0);
+    let mut wave = SendTriangleWave::new(840.0);
     println!("Enabling output");
+    FreeRtos::delay_ms(2000);
     i2s.tx_enable().unwrap();
-
-    println!("Starting transmission");
+    println!("Output enabled");
 
     loop {
         wave.send(&mut i2s).unwrap();
@@ -161,11 +174,86 @@ fn main() {
     ht16k33.initialize().unwrap();
 
     ht16k33.set_display(ht16k33::Display::ON).unwrap();
+    // Initialise the state that we want to live on the audio thread.
+    let mut context = AudioContextBuilder::<64>::new()
+        .sr(SAMPLE_RATE)
+        .channels(2)
+        .build();
+
+    // let tone = context.add_mono_node(SinOsc::new().freq(440.0));
+    // let volume = context.add_mono_node(Mul::new(0.3));
+    // let node_b = context.add_stereo_node(Mul::new(0.1));
+    // context.chain(vec![node_a, noise_node]);
+    // context.connect(noise_node, filter_node);
+    // context.connect(filter_node, node_b);
+    // context.connect(noise_node, node_b);
+    // context.connect(node_a, node_b);
+    // context.connect(noise_node, context.destination);
+    // context.connect(tone, volume);
+    // context.connect(noise_node, volume);
+    // context.connect(volume, context.destination);
+    // let node_a = context.add_mono_node(SawOsc::new().freq(440.));
+    // let node_b = context.add_mono_node(ResonantLowPassFilter::new().cutoff(1000.0));
+    // let node_c = context.add_mono_node(ConstSig::new(10.0));
+    // context.chain(vec![node_a, node_b, context.destination]);
+    // context.connect(node_c, node_b);
+    // let filter = glicol_synth::filter::ResonantLowPassFilter::new().cutoff(5000.0);
+    // let filter_node = context.add_mono_node(filter);
+    // let noise = Noise::new(0);
+    // let noise_node = context.add_mono_node(noise);
+    // let t1 = context.add_stereo_node(SinOsc::new().freq(40.0));
+    // let m1 = context.add_stereo_node(Mul::new(.));
+    // let t2 = context.add_stereo_node(SinOsc::new().freq(80.0));
+    // let m2 = context.add_stereo_node(Mul::new(20.));
+    // let add = context.add_stereo_node(Add::new(600.0));
+    // context.connect(t1, m1);
+    // context.connect(t2, m2);
+    // context.connect(m1, add);
+    // context.connect(add, t2);
+    let sin1 = context.add_stereo_node(SinOsc::new().freq(440.0));
+    let sin2 = context.add_stereo_node(SinOsc::new().freq(80.0));
+    // let mix = context.add_stereo_node(Sum {});
+    // let mul2 = context.add_stereo_node(Mul::new(0.1));
+    // let add = context.add_stereo_node(Add::new(500.));
+    // let mul1 = context.add_stereo_node(Mul::new(0.1));
+    // let mul2 = context.add_stereo_node(Mul::new(300.));
+    // let add2 = context.add_stereo_node(Add::new(600.));
+    // context.connect(sin1, mul1);
+    // context.connect(noise_node, mul2);
+    // context.connect(mul2, add2);
+    // context.connect(add2, sin1);
+    // context.connect(t1, t2);
+    // context.connect(mul1, context.destination);
+    // context.chain(vec![sin1, context.destination]);
+    // context.chain(vec![sin2, context.destination]);
+
     loop {
+        i2s.write(&[0], 1000).unwrap();
         for i in 0..16 {
             for j in 0..8 {
                 ht16k33.clear_display_buffer();
                 let led = LedLocation::new(i, j).unwrap();
+                // i2s.write(&[i * j], 1000);
+                let block = context.next_block();
+                // frame[channel_index] = block[channel_index][frame_index];
+                for i in 0..block[0].len() {
+                    let left_pcm = float_to_pcm(block[0][i]);
+                    let left: [u8; 2] = cast::<i16, [u8; 2]>(left_pcm);
+                    let right_pcm = float_to_pcm(block[0][i]);
+                    let right: [u8; 2] = cast::<i16, [u8; 2]>(right_pcm);
+                    let buffer = [left[0], left[1], right[0], right[1]];
+                    // let i_value = (block[0][i] * (i16::MAX as f32)) as i16 as u16;
+                    // let mut buffer: [u8; 4] = [0, 0, 0, 0];
+                    // buffer[0] = (i_value & 0x00ff) as u8;
+                    // buffer[0 + 1] = ((i_value & 0xff00) >> 8) as u8;
+                    // buffer[0 + 2] = (i_value & 0x00ff) as u8;
+                    // buffer[0 + 3] = ((i_value & 0xff00) >> 8) as u8;
+                    // i2s.write(&left, 1000);
+                }
+
+                //     }
+                // }
+
                 ht16k33.update_display_buffer(led, true);
                 ht16k33.write_display_buffer().unwrap();
                 FreeRtos::delay_ms(50);
